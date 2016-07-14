@@ -6,6 +6,7 @@ import Http
 import Json.Decode as Json exposing (..) 
 import Task
 import Issues
+import Github exposing (..)
 
 main =
   App.program
@@ -19,6 +20,7 @@ type alias Model =
   {
     openIssues : Issues.Model
   , closedIssues : Issues.Model
+  , markedIssue : Maybe Issue
   }
 
 subscriptions : Model -> Sub Msg
@@ -28,33 +30,31 @@ subscriptions model =
 init : String -> (Model, Cmd Msg)
 init url =
   let
-    (openModel, openCmd) = Issues.init url "Open" (Just Issues.Open)
-    (closedModel, closedCmd) = Issues.init url "Closed" (Just Issues.Closed)
+    (openModel, openCmd) = Issues.init url "Open" (Just Open)
+    (closedModel, closedCmd) = Issues.init url "Closed" (Just Closed)
   in
-    {openIssues = openModel, closedIssues = closedModel}
-    ! [Cmd.map OpenMsg openCmd
-      , Cmd.map ClosedMsg closedCmd]
+    {openIssues = openModel, closedIssues = closedModel, markedIssue = Nothing}
+    ! [Cmd.map (IssuesMsg Open) openCmd
+      , Cmd.map (IssuesMsg Closed) closedCmd]
 
 -- UPDATE
 
-
-type Msg
-  = OpenMsg Issues.Msg
-  | ClosedMsg Issues.Msg
+type Msg = IssuesMsg IssueState Issues.Msg
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    OpenMsg msg ->
+    IssuesMsg Open msg ->
       let
         (newModel, cmd) = Issues.update msg model.openIssues
       in
-        ({ model | openIssues = newModel }, Cmd.map OpenMsg cmd)
-    ClosedMsg msg ->
+        ({ model | openIssues = newModel }, Cmd.map (IssuesMsg Open) cmd)
+
+    IssuesMsg Closed msg ->
       let
         (newModel, cmd) = Issues.update msg model.closedIssues
       in
-        ({model | closedIssues = newModel }, Cmd.map ClosedMsg cmd)
+        ({model | closedIssues = newModel }, Cmd.map (IssuesMsg Closed) cmd)
 
 -- VIEW
 
@@ -64,7 +64,7 @@ view model =
   div []
     [ h2 [] [text "Themis Issues"]
     , br [] []
-    , div [] [App.map OpenMsg (Issues.view model.openIssues)
+    , div [] [App.map (IssuesMsg Open) (Issues.view model.openIssues)
              , hr [] []
-             , App.map ClosedMsg (Issues.view model.closedIssues)]
+             , App.map (IssuesMsg Closed) (Issues.view model.closedIssues)]
     ]

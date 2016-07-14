@@ -1,4 +1,4 @@
-module Issues exposing (Model, Msg, init, update, view, IssueState(..))
+module Issues exposing (Model, Msg, init, update, view)
 
 import Html exposing (..)
 import Html.App as App
@@ -7,17 +7,7 @@ import Html.Events exposing (..)
 import Http
 import Json.Decode as Json exposing (..)
 import Task
-
-type IssueState = Open | Closed
-
-type alias IssueFilter = Maybe IssueState
-type alias Repo = String
-
-type alias Issue =
-  { id : Int
-  , title : String
-  , state : IssueState
-  , number : Int }
+import Github exposing (..)
 
 type alias Model =
   { title : String
@@ -73,6 +63,9 @@ getIssues repo filter =
 type Msg
   = FetchSucceed (List Issue)
   | FetchFail Http.Error
+  | AddIssue Issue
+  | RemoveIssue Issue
+  | Mark Issue
   | Drop
   | DragStart Issue
 
@@ -85,6 +78,15 @@ update msg model =
     FetchFail _ ->
       (model, Cmd.none)
 
+    AddIssue issue ->
+      (addIssue issue model, Cmd.none)
+
+    RemoveIssue issue ->
+      (removeIssue issue model, Cmd.none)
+
+    Mark issue ->
+      (model, Cmd.none)
+
     Drop ->
       -- TODO pensar :)
       Debug.log "Drop!" (model, Cmd.none)
@@ -92,6 +94,12 @@ update msg model =
     DragStart _ ->
       (model, Cmd.none)
 
+
+addIssue : Issue -> Model -> Model
+addIssue issue model = { model | issues = issue :: model.issues }
+
+removeIssue : Issue -> Model -> Model
+removeIssue issue model = { model | issues = List.filter ((/= ) issue) model.issues }
 
 
 -- VIEW
@@ -107,5 +115,6 @@ issueView : Issue -> Html Msg
 issueView issue =
   li [ draggable "true"
      , on "dragstart" (Json.succeed (DragStart issue))
+     , onClick (Mark issue)
      ]
      [text <| "(#" ++ (toString issue.number) ++ ") " ++ issue.title]
