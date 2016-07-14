@@ -28,8 +28,8 @@ subscriptions model =
 init : String -> (Model, Cmd Msg)
 init url =
   let
-    (openModel, openCmd) = Issues.init url (Just Issues.Open)
-    (closedModel, closedCmd) = Issues.init url (Just Issues.Closed)
+    (openModel, openCmd) = Issues.init url "Open" (Just Issues.Open)
+    (closedModel, closedCmd) = Issues.init url "Closed" (Just Issues.Closed)
   in
     {openIssues = openModel, closedIssues = closedModel}
     ! [Cmd.map OpenMsg openCmd

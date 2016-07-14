@@ -20,8 +20,8 @@ type alias Issue =
   , number : Int }
 
 type alias Model =
-  {
-    issues : List Issue
+  { title : String
+  , issues : List Issue
   }
 
 
@@ -31,9 +31,9 @@ subscriptions model =
   Sub.none
 
 
-init : Repo -> IssueFilter -> (Model, Cmd Msg)
-init repo filter =
-  ( { issues = [] }
+init : Repo -> String -> IssueFilter -> (Model, Cmd Msg)
+init repo title filter =
+  ( { title = title, issues = [] }
   , getIssues repo filter
   )
 
@@ -73,6 +73,8 @@ getIssues repo filter =
 type Msg
   = FetchSucceed (List Issue)
   | FetchFail Http.Error
+  | Drop
+  | DragStart Issue
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -83,13 +85,27 @@ update msg model =
     FetchFail _ ->
       (model, Cmd.none)
 
+    Drop ->
+      -- TODO pensar :)
+      Debug.log "Drop!" (model, Cmd.none)
+
+    DragStart _ ->
+      (model, Cmd.none)
+
 
 
 -- VIEW
 view : Model -> Html Msg
-view model =
-  ul [] <| List.map issueView model.issues
+view model = div [] [ h1 [ on "drop" (Json.succeed Drop)
+                         , attribute "ondragover" "event.preventDefault()"
+                         ]
+                         [ text model.title ]
+                    , ul [] <| List.map issueView model.issues
+                    ]
 
 issueView : Issue -> Html Msg
 issueView issue =
-  li [] [text <| "(#" ++ (toString issue.number) ++ ") " ++ issue.title]
+  li [ draggable "true"
+     , on "dragstart" (Json.succeed (DragStart issue))
+     ]
+     [text <| "(#" ++ (toString issue.number) ++ ") " ++ issue.title]
