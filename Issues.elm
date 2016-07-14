@@ -1,4 +1,4 @@
-module Issues exposing (Model, Msg, init, update, view)
+module Issues exposing (Model, Msg(Mark, AddIssue, RemoveIssue), init, update, view)
 
 import Html exposing (..)
 import Html.App as App
