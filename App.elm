@@ -5,6 +5,7 @@ import Html.Events exposing (..)
 import Http
 import Json.Decode as Json exposing (..) 
 import Task
+import Issues
 
 main =
   App.program
@@ -14,75 +15,46 @@ main =
     , subscriptions = subscriptions
     }
 
-type IssueState = Open | Closed
-
-type alias Issue =
-  { id : Int
-  , title : String
-  , state : IssueState
-  , number : Int }
-
 type alias Model =
   {
-    issues : List Issue
+    openIssues : Issues.Model
+  , closedIssues : Issues.Model
   }
-
-
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.none
 
-
 init : String -> (Model, Cmd Msg)
 init url =
-  ( { issues = [] }
-  , getIssues url
-  )
-
-
-decodeIssue : Json.Decoder (List Issue)
-decodeIssue =
-  Json.list <| Json.object4 Issue
-    ("id" := Json.int)
-    ("title" := Json.string)
-    ("state" := issueStateDecoder)
-    ("number" := Json.int)
-
-issueStateDecoder : Json.Decoder IssueState
-issueStateDecoder = Json.string `andThen`
-                    (\s -> case s of
-                             "open" -> succeed Open
-                             "closed" -> succeed Closed
-                             _ -> fail <| "Unknown issue state from GH API (" ++ s ++ ")")
-
-
-getIssues : String -> Cmd Msg
-getIssues url =
   let
-    issueUrl =
-     "https://api.github.com/repos/" ++ url ++ "/issues?state=all"
+    (openModel, openCmd) = Issues.init url (Just Issues.Open)
+    (closedModel, closedCmd) = Issues.init url (Just Issues.Closed)
   in
-    Task.perform FetchFail FetchSucceed (Http.get decodeIssue issueUrl)
-
+    {openIssues = openModel, closedIssues = closedModel}
+    ! [Cmd.map OpenMsg openCmd
+      , Cmd.map ClosedMsg closedCmd]
 
 -- UPDATE
 
 
 type Msg
-  = FetchSucceed (List Issue)
-  | FetchFail Http.Error
+  = OpenMsg Issues.Msg
+  | ClosedMsg Issues.Msg
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    FetchSucceed issues ->
-      ({ model | issues = issues}, Cmd.none)
-
-    FetchFail _ ->
-      (model, Cmd.none)
-
-
+    OpenMsg msg ->
+      let
+        (newModel, cmd) = Issues.update msg model.openIssues
+      in
+        ({ model | openIssues = newModel }, Cmd.map OpenMsg cmd)
+    ClosedMsg msg ->
+      let
+        (newModel, cmd) = Issues.update msg model.closedIssues
+      in
+        ({model | closedIssues = newModel }, Cmd.map ClosedMsg cmd)
 
 -- VIEW
 
@@ -92,9 +64,7 @@ view model =
   div []
     [ h2 [] [text "Themis Issues"]
     , br [] []
-    , ul [] <| List.map issueView model.issues
+    , div [] [App.map OpenMsg (Issues.view model.openIssues)
+             , hr [] []
+             , App.map ClosedMsg (Issues.view model.closedIssues)]
     ]
-
-issueView : Issue -> Html Msg
-issueView issue =
-  li [] [text <| "(#" ++ (toString issue.number) ++ ") " ++ issue.title]
