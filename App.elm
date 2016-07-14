@@ -3,7 +3,7 @@ import Html.App as App
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
-import Json.Decode as Json
+import Json.Decode as Json exposing (..) 
 import Task
 
 main =
@@ -14,7 +14,13 @@ main =
     , subscriptions = subscriptions
     }
 
-type alias Issue = String
+type IssueState = Open | Closed
+
+type alias Issue =
+  { id : Int
+  , title : String
+  , state : IssueState
+  , number : Int }
 
 type alias Model =
   {
@@ -35,17 +41,27 @@ init url =
   )
 
 
-decodeIssue : Json.Decoder (List String)
+decodeIssue : Json.Decoder (List Issue)
 decodeIssue =
-  Json.list <| Json.at ["title"] Json.string
+  Json.list <| Json.object4 Issue
+    ("id" := Json.int)
+    ("title" := Json.string)
+    ("state" := issueStateDecoder)
+    ("number" := Json.int)
 
+issueStateDecoder : Json.Decoder IssueState
+issueStateDecoder = Json.string `andThen`
+                    (\s -> case s of
+                             "open" -> succeed Open
+                             "closed" -> succeed Closed
+                             _ -> fail <| "Unknown issue state from GH API (" ++ s ++ ")")
 
 
 getIssues : String -> Cmd Msg
 getIssues url =
   let
     issueUrl =
-     "https://api.github.com/repos/" ++ url ++ "/issues?per_page=4"
+     "https://api.github.com/repos/" ++ url ++ "/issues?state=all"
   in
     Task.perform FetchFail FetchSucceed (Http.get decodeIssue issueUrl)
 
@@ -54,7 +70,7 @@ getIssues url =
 
 
 type Msg
-  = FetchSucceed (List String)
+  = FetchSucceed (List Issue)
   | FetchFail Http.Error
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -81,4 +97,4 @@ view model =
 
 issueView : Issue -> Html Msg
 issueView issue =
-  li [] [text issue]
+  li [] [text <| "(#" ++ (toString issue.number) ++ ") " ++ issue.title]
