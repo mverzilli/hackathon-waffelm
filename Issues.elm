@@ -1,4 +1,4 @@
-module Issues exposing (Model, Msg(Mark, AddIssue, RemoveIssue), init, update, view)
+module Issues exposing (Model, Msg(Mark, Drop, AddIssue, RemoveIssue), init, update, view)
 
 import Html exposing (..)
 import Html.App as App
@@ -88,7 +88,6 @@ update msg model =
       (model, Cmd.none)
 
     Drop ->
-      -- TODO pensar :)
       Debug.log "Drop!" (model, Cmd.none)
 
     DragStart _ ->
@@ -104,17 +103,17 @@ removeIssue issue model = { model | issues = List.filter ((/= ) issue) model.iss
 
 -- VIEW
 view : Model -> Html Msg
-view model = div [] [ h1 [ on "drop" (Json.succeed Drop)
-                         , attribute "ondragover" "event.preventDefault()"
-                         ]
-                         [ text model.title ]
-                    , ul [] <| List.map issueView model.issues
-                    ]
+view model = div [ on "drop" (Json.succeed Drop)
+                 , attribute "ondragover" "event.preventDefault()"
+                 ]
+                 [ h1 [ ]
+                      [ text model.title ]
+                 , ul [] <| List.map issueView model.issues
+                 ]
 
 issueView : Issue -> Html Msg
 issueView issue =
   li [ draggable "true"
-     , on "dragstart" (Json.succeed (DragStart issue))
-     , onClick (Mark issue)
+     , on "dragstart" (Json.succeed (Mark issue))
      ]
      [text <| "(#" ++ (toString issue.number) ++ ") " ++ issue.title]

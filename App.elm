@@ -45,12 +45,11 @@ init url =
 -- UPDATE
 
 type Msg = IssuesMsg ColumnId Issues.Msg
-         | Move
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    Move ->
+    IssuesMsg targetId Issues.Drop ->
       case model.markedIssue of
         Nothing ->
           Debug.crash "invalid state!"
@@ -59,19 +58,23 @@ update msg model =
           let
               sourceId = sourceCol issue
               source = column sourceId model
-              targetId = targetCol issue
               target = column targetId model
-
-              updatedIssue = { issue | state = id2State targetId }
-
-              (sourceModel, sourceCmd) = Issues.update (Issues.RemoveIssue issue) source
-              (targetModel, targetCmd) = Issues.update (Issues.AddIssue updatedIssue) target
-
-              columns = insert sourceId sourceModel
-                      <| insert targetId targetModel model.columns
           in
-            {model | columns = columns, markedIssue = Nothing} ! [ Cmd.map (IssuesMsg sourceId) sourceCmd
-                                                                 , Cmd.map (IssuesMsg targetId) targetCmd]
+              if sourceId == targetId
+              then
+                ({ model | markedIssue = Nothing }, Cmd.none)
+              else
+                let
+                    updatedIssue = { issue | state = id2State targetId }
+                    (sourceModel, sourceCmd) = Issues.update (Issues.RemoveIssue issue) source
+                    (targetModel, targetCmd) = Issues.update (Issues.AddIssue updatedIssue) target
+
+                    columns = insert sourceId sourceModel
+                            <| insert targetId targetModel model.columns
+                in
+                    {model | columns = columns, markedIssue = Nothing} ! [ Cmd.map (IssuesMsg sourceId) sourceCmd
+                    , Cmd.map (IssuesMsg targetId) targetCmd]
+
 
     IssuesMsg _ (Issues.Mark issue) ->
       ({model | markedIssue = Just issue}, Cmd.none)
@@ -124,6 +127,4 @@ columnView id model = App.map (IssuesMsg id) (Issues.view model)
 markedView : Model -> Html Msg
 markedView model = case model.markedIssue of
                      Nothing -> text ""
-                     Just issue -> div [] [ text (toString issue.number)
-                                          , button [ onClick Move ] [ text "Mover" ]
-                                          ]
+                     Just issue -> div [] [ text (toString issue.number) ]
